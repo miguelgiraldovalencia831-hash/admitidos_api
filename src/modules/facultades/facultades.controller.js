@@ -1,4 +1,4 @@
-import * as FacultadesService from './facultades.service.js';
+import * as FacultadesService from "./facultades.service.js";
 
 export async function listarFacultades(req, res) {
     try {
@@ -17,17 +17,4 @@ export async function listarFacultades(req, res) {
             message: "Error al listar facultades",
         });
     }
-}
-
-
-
-
-
-
-
-
-
-
-    }
-    
 }
