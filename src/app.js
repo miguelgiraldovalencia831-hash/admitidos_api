@@ -6,6 +6,7 @@ import estudiantesRoutes from "./modules/estudiantes/estudiantes.routes.js";
 const app = express();
 
 app.use(express.json()); /* Middleware para parsear el cuerpo de las solicitudes */
+app.use(express.static("public"));
 app.use("/api/facultades", facultadesRoutes);
 app.use("/api/estudiantes", estudiantesRoutes);
 

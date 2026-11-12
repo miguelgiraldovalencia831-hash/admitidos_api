@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admisiones</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="layout">
+
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">A</div>
+        <div>
+          <strong>Admisiones</strong>
+          <small>Tu universidad</small>
+        </div>
+      </div>
+
+      <p class="nav-title">Mi espacio</p>
+      <nav>
+        <a href="#" class="nav-link activo" data-vista="panel">Mi panel</a>
+        <a href="#" class="nav-link" data-vista="facultades">Facultades</a>
+        <a href="#" class="nav-link" data-vista="estudiantes">Estudiantes</a>
+      </nav>
+
+      <div class="periodo">
+        <small>Periodo académico</small>
+        <strong>2026 - 2</strong>
+      </div>
+    </aside>
+
+    <div class="contenido">
+      <header class="topbar">
+        <span id="fecha"></span>
+        <div class="usuario">
+          <div class="avatar">AA</div>
+          <div>
+            <strong>Analista</strong>
+            <small>Admisiones</small>
+          </div>
+        </div>
+      </header>
+
+      <main class="panel">
+
+        <!-- Mensaje compartido por todas las pantallas -->
+        <p id="mensaje" class="mensaje" hidden></p>
+
+        <!-- Vista: Panel -->
+        <div id="vista-panel">
+          <section class="hero">
+            <span class="chip">Periodo 2026 - 2</span>
+            <h1>Hola, Analista</h1>
+            <p>Este es el resumen de admisiones. Aquí puedes consultar las facultades y los estudiantes registrados.</p>
+          </section>
+
+          <section class="tarjetas">
+            <article class="tarjeta">
+              <small>Facultades</small>
+              <strong id="total-facultades">...</strong>
+              <span>registradas</span>
+            </article>
+            <article class="tarjeta">
+              <small>Estudiantes</small>
+              <strong id="total-estudiantes">...</strong>
+              <span>registrados</span>
+            </article>
+            <article class="tarjeta">
+              <small>Periodo</small>
+              <strong>2026 - 2</strong>
+              <span>en curso</span>
+            </article>
+          </section>
+        </div>
+
+        <!-- Vista: Facultades -->
+        <div id="vista-facultades" hidden>
+          <h1 class="titulo">Facultades</h1>
+
+          <form id="form-facultad" class="formulario">
+            <input type="text" id="nombre-facultad" placeholder="Nombre de la facultad" required minlength="3" maxlength="150">
+            <button type="submit" id="btn-guardar" class="btn">Crear facultad</button>
+            <button type="button" id="btn-cancelar" class="btn secundario" hidden>Cancelar</button>
+          </form>
+
+          <table class="tabla">
+            <thead>
+              <tr><th>Nombre</th><th></th></tr>
+            </thead>
+            <tbody id="tabla-facultades"></tbody>
+          </table>
+          <p id="vacio" class="vacio" hidden>Aún no hay facultades. Crea la primera con el formulario.</p>
+        </div>
+
+        <!-- Vista: Estudiantes -->
+        <div id="vista-estudiantes" hidden>
+          <h1 class="titulo">Estudiantes</h1>
+
+          <form id="form-estudiante" class="formulario">
+            <input type="text" id="est-nombre" placeholder="Nombre" required minlength="2" maxlength="100">
+            <input type="text" id="est-apellido" placeholder="Apellido" required minlength="2" maxlength="100">
+            <input type="text" id="est-documento" placeholder="Documento" required minlength="5" maxlength="20">
+            <input type="email" id="est-email" placeholder="Correo electrónico" required maxlength="150">
+            <button type="submit" id="est-guardar" class="btn">Crear estudiante</button>
+            <button type="button" id="est-cancelar" class="btn secundario" hidden>Cancelar</button>
+          </form>
+
+          <table class="tabla">
+            <thead>
+              <tr><th>Apellido y nombre</th><th>Documento</th><th>Correo</th><th></th></tr>
+            </thead>
+            <tbody id="tabla-estudiantes"></tbody>
+          </table>
+          <p id="est-vacio" class="vacio" hidden>Aún no hay estudiantes. Registra el primero con el formulario.</p>
+        </div>
+
+      </main>
+    </div>
+
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
