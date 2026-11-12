@@ -1,15 +1,48 @@
+/* ---------- Sesión ---------- */
+const CLAVE_SESION = "admitidos_sesion";
+let sesion = null; /* { token, estudiante } para estudiantes, { token, admisor: true } para el equipo */
+
+function leerSesionGuardada() {
+  try {
+    return JSON.parse(localStorage.getItem(CLAVE_SESION));
+  } catch {
+    return null;
+  }
+}
+
+function guardarSesion(nueva) {
+  sesion = nueva;
+  try {
+    localStorage.setItem(CLAVE_SESION, JSON.stringify(nueva));
+  } catch { /* si el navegador no deja guardar, la sesión dura hasta recargar */ }
+}
+
+function tokenVencido(token) {
+  try {
+    const cuerpo = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return cuerpo.exp < Date.now() / 1000;
+  } catch {
+    return true;
+  }
+}
+
 /* ---------- Utilidades ---------- */
 async function pedir(ruta, opciones = {}) {
+  const headers = { "Content-Type": "application/json" };
+  if (sesion?.token) headers.Authorization = "Bearer " + sesion.token;
+
   let respuesta;
   try {
-    respuesta = await fetch(ruta, {
-      headers: { "Content-Type": "application/json" },
-      ...opciones,
-    });
+    respuesta = await fetch(ruta, { ...opciones, headers });
   } catch {
     throw new Error("No se pudo conectar con la API. Revisa que el backend esté encendido.");
   }
   const resultado = await respuesta.json();
+  if (respuesta.status === 401 && sesion) {
+    cerrarSesion();
+    mensajeAcceso("Tu sesión venció. Inicia sesión de nuevo.");
+    throw new Error("Sesión vencida");
+  }
   if (!respuesta.ok || resultado.success === false) {
     throw new Error(resultado.message || "Ocurrió un error");
   }
@@ -26,6 +59,24 @@ function mostrarMensaje(texto, esError = false) {
   temporizadorMensaje = setTimeout(() => (caja.hidden = true), 4000);
 }
 
+function llenarSelect(select, items, textoInicial) {
+  select.innerHTML = "";
+  const inicial = document.createElement("option");
+  inicial.value = "";
+  inicial.textContent = textoInicial;
+  select.appendChild(inicial);
+  items.forEach((item) => {
+    const opcion = document.createElement("option");
+    opcion.value = item._id;
+    opcion.textContent = item.nombre;
+    select.appendChild(opcion);
+  });
+}
+
+function nombreNivel(nivel) {
+  return nivel ? nivel.charAt(0).toUpperCase() + nivel.slice(1) : "-";
+}
+
 /* ---------- Panel (totales) ---------- */
 async function cargarTotales() {
   try {
@@ -34,6 +85,7 @@ async function cargarTotales() {
   } catch {
     document.getElementById("total-facultades").textContent = "-";
   }
+  if (!sesion?.admisor) return;
   try {
     const estudiantes = await pedir("/api/estudiantes/show/");
     document.getElementById("total-estudiantes").textContent = estudiantes.length;
@@ -44,15 +96,20 @@ async function cargarTotales() {
 
 /* ---------- Navegación entre pantallas ---------- */
 function mostrarVista(nombre) {
-  ["panel", "facultades", "estudiantes"].forEach((v) => {
+  if (!sesion?.admisor && nombre !== "panel") nombre = "panel";
+  ["panel", "facultades", "programas", "estudiantes"].forEach((v) => {
     document.getElementById("vista-" + v).hidden = v !== nombre;
   });
   document.querySelectorAll(".nav-link").forEach((enlace) => {
     enlace.classList.toggle("activo", enlace.dataset.vista === nombre);
   });
 
-  if (nombre === "panel") cargarTotales();
+  if (nombre === "panel") {
+    cargarTotales();
+    if (!sesion?.admisor) cargarMiCarrera();
+  }
   if (nombre === "facultades") cargarFacultades();
+  if (nombre === "programas") cargarProgramas();
   if (nombre === "estudiantes") cargarEstudiantes();
 }
 
@@ -159,6 +216,127 @@ async function eliminarFacultad(facultad) {
   }
 }
 
+/* ---------- Programas (admisor) ---------- */
+const formProg = document.getElementById("form-programa");
+const progNombre = document.getElementById("prog-nombre");
+const progNivel = document.getElementById("prog-nivel");
+const progFacultad = document.getElementById("prog-facultad");
+const progGuardar = document.getElementById("prog-guardar");
+const progCancelar = document.getElementById("prog-cancelar");
+let editandoProgId = null;
+
+async function cargarProgramas() {
+  const cuerpo = document.getElementById("tabla-programas");
+  cuerpo.innerHTML = "";
+
+  try {
+    const [facultades, programas] = await Promise.all([
+      pedir("/api/facultades/show/"),
+      pedir("/api/programas/show/"),
+    ]);
+
+    const elegida = progFacultad.value;
+    llenarSelect(progFacultad, facultades, "Elige la facultad");
+    progFacultad.value = elegida;
+
+    document.getElementById("prog-vacio").hidden = programas.length > 0;
+
+    programas.forEach((prog) => {
+      const fila = document.createElement("tr");
+
+      const celdaCodigo = document.createElement("td");
+      celdaCodigo.textContent = prog.codigo;
+
+      const celdaNombre = document.createElement("td");
+      celdaNombre.textContent = prog.nombre;
+
+      const celdaNivel = document.createElement("td");
+      celdaNivel.textContent = nombreNivel(prog.nivel);
+
+      const celdaFacultad = document.createElement("td");
+      celdaFacultad.textContent = prog.facultad?.nombre ?? "-";
+
+      const celdaAcciones = document.createElement("td");
+      celdaAcciones.className = "acciones";
+
+      const btnEditar = document.createElement("button");
+      btnEditar.className = "btn-chico";
+      btnEditar.textContent = "Editar";
+      btnEditar.addEventListener("click", () => empezarEdicionProg(prog));
+
+      const btnBorrar = document.createElement("button");
+      btnBorrar.className = "btn-chico borrar";
+      btnBorrar.textContent = "Eliminar";
+      btnBorrar.addEventListener("click", () => eliminarPrograma(prog));
+
+      celdaAcciones.append(btnEditar, " ", btnBorrar);
+      fila.append(celdaCodigo, celdaNombre, celdaNivel, celdaFacultad, celdaAcciones);
+      cuerpo.appendChild(fila);
+    });
+  } catch (error) {
+    mostrarMensaje(error.message, true);
+  }
+}
+
+function empezarEdicionProg(prog) {
+  editandoProgId = prog._id;
+  progNombre.value = prog.nombre;
+  progNivel.value = prog.nivel;
+  progFacultad.value = prog.facultad?._id ?? "";
+  progGuardar.textContent = "Guardar cambios";
+  progCancelar.hidden = false;
+  progNombre.focus();
+}
+
+function terminarEdicionProg() {
+  editandoProgId = null;
+  formProg.reset();
+  progGuardar.textContent = "Crear programa";
+  progCancelar.hidden = true;
+}
+
+progCancelar.addEventListener("click", terminarEdicionProg);
+
+formProg.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const datos = {
+    nombre: progNombre.value.trim(),
+    nivel: progNivel.value,
+    facultad: progFacultad.value,
+  };
+
+  try {
+    if (editandoProgId) {
+      await pedir("/api/programas/update/" + editandoProgId, {
+        method: "PUT",
+        body: JSON.stringify(datos),
+      });
+      mostrarMensaje("Programa actualizado");
+    } else {
+      await pedir("/api/programas/create/", {
+        method: "POST",
+        body: JSON.stringify(datos),
+      });
+      mostrarMensaje("Programa creado");
+    }
+    terminarEdicionProg();
+    cargarProgramas();
+  } catch (error) {
+    mostrarMensaje(error.message, true);
+  }
+});
+
+async function eliminarPrograma(prog) {
+  if (!confirm("¿Eliminar el programa " + prog.nombre + "?")) return;
+  try {
+    await pedir("/api/programas/delete/" + prog._id, { method: "DELETE" });
+    mostrarMensaje("Programa eliminado");
+    cargarProgramas();
+  } catch (error) {
+    mostrarMensaje(error.message, true);
+  }
+}
+
 /* ---------- Estudiantes ---------- */
 const formEst = document.getElementById("form-estudiante");
 const estNombre = document.getElementById("est-nombre");
@@ -191,6 +369,12 @@ async function cargarEstudiantes() {
       const celdaEmail = document.createElement("td");
       celdaEmail.textContent = est.email;
 
+      const celdaFacultad = document.createElement("td");
+      celdaFacultad.textContent = est.facultad?.nombre ?? "-";
+
+      const celdaCarrera = document.createElement("td");
+      celdaCarrera.textContent = est.programa?.nombre ?? "-";
+
       const celdaAcciones = document.createElement("td");
       celdaAcciones.className = "acciones";
 
@@ -205,7 +389,7 @@ async function cargarEstudiantes() {
       btnBorrar.addEventListener("click", () => eliminarEstudiante(est));
 
       celdaAcciones.append(btnEditar, " ", btnBorrar);
-      fila.append(celdaNombre, celdaDocumento, celdaEmail, celdaAcciones);
+      fila.append(celdaNombre, celdaDocumento, celdaEmail, celdaFacultad, celdaCarrera, celdaAcciones);
       cuerpo.appendChild(fila);
     });
   } catch (error) {
@@ -274,8 +458,207 @@ async function eliminarEstudiante(est) {
   }
 }
 
+/* ---------- Mi carrera (estudiante) ---------- */
+const formCarrera = document.getElementById("form-carrera");
+const selFacultad = document.getElementById("sel-facultad");
+const selPrograma = document.getElementById("sel-programa");
+
+function mostrarDatosEstudiante(est) {
+  document.getElementById("dato-nombre").textContent = est.nombre + " " + est.apellido;
+  document.getElementById("dato-documento").textContent = est.documento;
+  document.getElementById("dato-email").textContent = est.email;
+  document.getElementById("dato-facultad").textContent = est.facultad?.nombre ?? "Sin elegir";
+  document.getElementById("dato-carrera").textContent = est.programa?.nombre ?? "Sin elegir";
+  document.getElementById("dato-nivel").textContent = nombreNivel(est.programa?.nivel);
+  document.getElementById("dato-codigo").textContent = est.programa?.codigo ?? "-";
+}
+
+async function cargarProgramasDeFacultad(idFacultad) {
+  if (!idFacultad) {
+    llenarSelect(selPrograma, [], "Primero elige una facultad");
+    selPrograma.disabled = true;
+    return;
+  }
+  const programas = await pedir("/api/programas/show/?facultad=" + idFacultad);
+  llenarSelect(selPrograma, programas, programas.length ? "Elige una carrera" : "Esta facultad aún no tiene carreras");
+  selPrograma.disabled = programas.length === 0;
+}
+
+async function prepararSelectores(perfil) {
+  const facultades = await pedir("/api/facultades/show/");
+  llenarSelect(selFacultad, facultades, "Elige una facultad");
+
+  if (perfil.facultad) {
+    selFacultad.value = perfil.facultad._id;
+    await cargarProgramasDeFacultad(perfil.facultad._id);
+    if (perfil.programa) selPrograma.value = perfil.programa._id;
+  } else {
+    await cargarProgramasDeFacultad("");
+  }
+}
+
+async function cargarMiCarrera() {
+  try {
+    const perfil = await pedir("/api/auth/me");
+    if (!sesion) return; /* si cerró sesión mientras cargaba, no hacemos nada */
+    guardarSesion({ ...sesion, estudiante: { ...sesion.estudiante, ...perfil } });
+    mostrarDatosEstudiante(perfil);
+    await prepararSelectores(perfil);
+  } catch (error) {
+    mostrarMensaje(error.message, true);
+  }
+}
+
+selFacultad.addEventListener("change", async () => {
+  try {
+    await cargarProgramasDeFacultad(selFacultad.value);
+  } catch (error) {
+    mostrarMensaje(error.message, true);
+  }
+});
+
+formCarrera.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    const perfil = await pedir("/api/auth/me/carrera", {
+      method: "PUT",
+      body: JSON.stringify({ facultad: selFacultad.value, programa: selPrograma.value }),
+    });
+    guardarSesion({ ...sesion, estudiante: { ...sesion.estudiante, ...perfil } });
+    mostrarDatosEstudiante(perfil);
+    mostrarMensaje("Carrera guardada correctamente");
+  } catch (error) {
+    mostrarMensaje(error.message, true);
+  }
+});
+
 /* ---------- Inicio ---------- */
 document.getElementById("fecha").textContent =
   new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
 
-cargarTotales();
+/* ---------- Acceso: iniciar sesión y crear cuenta ---------- */
+const pantallaAcceso = document.getElementById("pantalla-acceso");
+const appPrincipal = document.getElementById("app");
+const formLogin = document.getElementById("form-login");
+const formRegistro = document.getElementById("form-registro");
+const tabLogin = document.getElementById("tab-login");
+const tabRegistro = document.getElementById("tab-registro");
+
+let temporizadorAcceso;
+function mensajeAcceso(texto, esError = true) {
+  const caja = document.getElementById("mensaje-acceso");
+  caja.textContent = texto;
+  caja.className = esError ? "mensaje error" : "mensaje";
+  caja.hidden = false;
+  clearTimeout(temporizadorAcceso);
+  temporizadorAcceso = setTimeout(() => (caja.hidden = true), 5000);
+}
+
+function cambiarPestana(irARegistro) {
+  formLogin.hidden = irARegistro;
+  formRegistro.hidden = !irARegistro;
+  tabLogin.classList.toggle("activa", !irARegistro);
+  tabRegistro.classList.toggle("activa", irARegistro);
+  document.getElementById("mensaje-acceso").hidden = true;
+}
+tabLogin.addEventListener("click", () => cambiarPestana(false));
+tabRegistro.addEventListener("click", () => cambiarPestana(true));
+
+function mostrarAcceso() {
+  appPrincipal.hidden = true;
+  pantallaAcceso.hidden = false;
+  cambiarPestana(false);
+}
+
+function entrarALaApp() {
+  const esAdmisor = !!sesion.admisor;
+  pantallaAcceso.hidden = true;
+  appPrincipal.hidden = false;
+
+  document.querySelectorAll(".solo-admisor").forEach((el) => (el.hidden = !esAdmisor));
+  document.querySelectorAll(".solo-estudiante").forEach((el) => (el.hidden = esAdmisor));
+
+  if (esAdmisor) {
+    document.getElementById("avatar").textContent = "AA";
+    document.getElementById("usuario-nombre").textContent = "Analista";
+    document.getElementById("usuario-rol").textContent = "Admisiones";
+    document.getElementById("saludo").textContent = "Analista";
+    document.getElementById("hero-texto").textContent =
+      "Este es el resumen de admisiones. Aquí puedes consultar las facultades y los estudiantes registrados.";
+  } else {
+    const est = sesion.estudiante;
+    document.getElementById("avatar").textContent = (est.nombre[0] + est.apellido[0]).toUpperCase();
+    document.getElementById("usuario-nombre").textContent = est.nombre + " " + est.apellido;
+    document.getElementById("usuario-rol").textContent = "Estudiante";
+    document.getElementById("saludo").textContent = est.nombre;
+    document.getElementById("hero-texto").textContent =
+      "Bienvenido a tu espacio de admisiones. Aquí puedes ver tus datos y las facultades disponibles.";
+    mostrarDatosEstudiante(est);
+  }
+
+  mostrarVista("panel");
+}
+
+function cerrarSesion() {
+  sesion = null;
+  try {
+    localStorage.removeItem(CLAVE_SESION);
+  } catch { /* nada que borrar */ }
+  mostrarAcceso();
+}
+
+formLogin.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    const datos = await pedir("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        email: document.getElementById("login-email").value.trim(),
+        password: document.getElementById("login-password").value,
+      }),
+    });
+    guardarSesion(
+      datos.rol === "admisor"
+        ? { token: datos.token, admisor: true }
+        : { token: datos.token, estudiante: datos.estudiante }
+    );
+    formLogin.reset();
+    entrarALaApp();
+  } catch (error) {
+    mensajeAcceso(error.message);
+  }
+});
+
+formRegistro.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    const datos = await pedir("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        nombre: document.getElementById("reg-nombre").value.trim(),
+        apellido: document.getElementById("reg-apellido").value.trim(),
+        documento: document.getElementById("reg-documento").value.trim(),
+        email: document.getElementById("reg-email").value.trim(),
+        password: document.getElementById("reg-password").value,
+      }),
+    });
+    guardarSesion({ token: datos.token, estudiante: datos.estudiante });
+    formRegistro.reset();
+    entrarALaApp();
+  } catch (error) {
+    mensajeAcceso(error.message);
+  }
+});
+
+document.getElementById("btn-salir").addEventListener("click", cerrarSesion);
+
+/* ---------- Arranque ---------- */
+const guardada = leerSesionGuardada();
+const sesionValida = guardada && guardada.token && !tokenVencido(guardada.token);
+
+if (sesionValida) {
+  sesion = guardada;
+  entrarALaApp();
+} else {
+  mostrarAcceso();
+}

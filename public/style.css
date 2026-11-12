@@ -122,3 +122,16 @@ nav { display: flex; flex-direction: column; gap: 4px; }
   nav { flex-direction: row; }
   .topbar, .panel { padding-left: 16px; padding-right: 16px; }
 }
+/* Selectores y tarjeta "Elige tu carrera" */
+.formulario select, .form-carrera select {
+  flex: 1; min-width: 220px; padding: 11px 14px; font: inherit;
+  border: 1px solid var(--borde); border-radius: 10px; background: #fff; color: var(--texto);
+}
+.formulario select:focus, .form-carrera select:focus { outline: 2px solid var(--azul); border-color: var(--azul); }
+.mi-carrera {
+  background: #fff; border: 1px solid var(--borde); border-radius: 16px;
+  padding: 22px; margin-bottom: 20px;
+}
+.mi-carrera h2 { margin: 0 0 4px; font-size: 1.1rem; }
+.mi-carrera p { margin: 0 0 14px; color: var(--suave); }
+.form-carrera { display: flex; gap: 10px; flex-wrap: wrap; }

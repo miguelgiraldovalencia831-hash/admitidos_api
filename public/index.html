@@ -7,7 +7,59 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="layout">
+  <!-- Pantalla de acceso: registro e inicio de sesión de estudiantes -->
+  <section id="pantalla-acceso" class="acceso" hidden>
+    <div class="acceso-caja">
+      <div class="brand brand-acceso">
+        <div class="brand-logo">A</div>
+        <div>
+          <strong>Admisiones</strong>
+          <small>Tu universidad</small>
+        </div>
+      </div>
+
+      <div class="pestanas">
+        <button type="button" id="tab-login" class="pestana activa">Iniciar sesión</button>
+        <button type="button" id="tab-registro" class="pestana">Crear cuenta</button>
+      </div>
+
+      <p id="mensaje-acceso" class="mensaje" hidden></p>
+
+      <form id="form-login" class="form-acceso">
+        <label>Correo electrónico
+          <input type="email" id="login-email" required maxlength="150" autocomplete="email">
+        </label>
+        <label>Contraseña
+          <input type="password" id="login-password" required autocomplete="current-password">
+        </label>
+        <button type="submit" class="btn">Entrar</button>
+      </form>
+
+      <form id="form-registro" class="form-acceso" hidden>
+        <div class="fila-doble">
+          <label>Nombre
+            <input type="text" id="reg-nombre" required minlength="2" maxlength="100" autocomplete="given-name">
+          </label>
+          <label>Apellido
+            <input type="text" id="reg-apellido" required minlength="2" maxlength="100" autocomplete="family-name">
+          </label>
+        </div>
+        <label>Documento
+          <input type="text" id="reg-documento" required minlength="5" maxlength="20">
+        </label>
+        <label>Correo electrónico
+          <input type="email" id="reg-email" required maxlength="150" autocomplete="email">
+        </label>
+        <label>Contraseña (mínimo 8 caracteres)
+          <input type="password" id="reg-password" required minlength="8" autocomplete="new-password">
+        </label>
+        <button type="submit" class="btn">Crear cuenta</button>
+      </form>
+
+    </div>
+  </section>
+
+  <div id="app" class="layout" hidden>
 
     <aside class="sidebar">
       <div class="brand">
@@ -21,8 +73,9 @@
       <p class="nav-title">Mi espacio</p>
       <nav>
         <a href="#" class="nav-link activo" data-vista="panel">Mi panel</a>
-        <a href="#" class="nav-link" data-vista="facultades">Facultades</a>
-        <a href="#" class="nav-link" data-vista="estudiantes">Estudiantes</a>
+        <a href="#" class="nav-link solo-admisor" data-vista="facultades">Facultades</a>
+        <a href="#" class="nav-link solo-admisor" data-vista="programas">Programas</a>
+        <a href="#" class="nav-link solo-admisor" data-vista="estudiantes">Estudiantes</a>
       </nav>
 
       <div class="periodo">
@@ -35,11 +88,12 @@
       <header class="topbar">
         <span id="fecha"></span>
         <div class="usuario">
-          <div class="avatar">AA</div>
+          <div class="avatar" id="avatar">AA</div>
           <div>
-            <strong>Analista</strong>
-            <small>Admisiones</small>
+            <strong id="usuario-nombre">Analista</strong>
+            <small id="usuario-rol">Admisiones</small>
           </div>
+          <button type="button" id="btn-salir" class="btn-chico">Cerrar sesión</button>
         </div>
       </header>
 
@@ -52,8 +106,31 @@
         <div id="vista-panel">
           <section class="hero">
             <span class="chip">Periodo 2026 - 2</span>
-            <h1>Hola, Analista</h1>
-            <p>Este es el resumen de admisiones. Aquí puedes consultar las facultades y los estudiantes registrados.</p>
+            <h1>Hola, <span id="saludo">Analista</span></h1>
+            <p id="hero-texto">Este es el resumen de admisiones. Aquí puedes consultar las facultades y los estudiantes registrados.</p>
+          </section>
+
+          <section class="mis-datos solo-estudiante" hidden>
+            <h2>Mis datos</h2>
+            <dl>
+              <dt>Nombre</dt><dd id="dato-nombre"></dd>
+              <dt>Documento</dt><dd id="dato-documento"></dd>
+              <dt>Correo</dt><dd id="dato-email"></dd>
+              <dt>Facultad</dt><dd id="dato-facultad"></dd>
+              <dt>Carrera</dt><dd id="dato-carrera"></dd>
+              <dt>Nivel</dt><dd id="dato-nivel"></dd>
+              <dt>Código</dt><dd id="dato-codigo"></dd>
+            </dl>
+          </section>
+
+          <section class="mi-carrera solo-estudiante" hidden>
+            <h2>Elige tu carrera</h2>
+            <p>Primero escoge la facultad y luego la carrera que quieres cursar.</p>
+            <form id="form-carrera" class="form-carrera">
+              <select id="sel-facultad" required></select>
+              <select id="sel-programa" required disabled></select>
+              <button type="submit" class="btn">Guardar mi elección</button>
+            </form>
           </section>
 
           <section class="tarjetas">
@@ -62,7 +139,7 @@
               <strong id="total-facultades">...</strong>
               <span>registradas</span>
             </article>
-            <article class="tarjeta">
+            <article class="tarjeta solo-admisor">
               <small>Estudiantes</small>
               <strong id="total-estudiantes">...</strong>
               <span>registrados</span>
@@ -94,6 +171,31 @@
           <p id="vacio" class="vacio" hidden>Aún no hay facultades. Crea la primera con el formulario.</p>
         </div>
 
+        <!-- Vista: Programas -->
+        <div id="vista-programas" hidden>
+          <h1 class="titulo">Programas</h1>
+
+          <form id="form-programa" class="formulario">
+            <input type="text" id="prog-nombre" placeholder="Nombre del programa" required minlength="3" maxlength="150">
+            <select id="prog-nivel" required>
+              <option value="pregrado">Pregrado</option>
+              <option value="posgrado">Posgrado</option>
+              <option value="otro">Otro</option>
+            </select>
+            <select id="prog-facultad" required></select>
+            <button type="submit" id="prog-guardar" class="btn">Crear programa</button>
+            <button type="button" id="prog-cancelar" class="btn secundario" hidden>Cancelar</button>
+          </form>
+
+          <table class="tabla">
+            <thead>
+              <tr><th>Código</th><th>Nombre</th><th>Nivel</th><th>Facultad</th><th></th></tr>
+            </thead>
+            <tbody id="tabla-programas"></tbody>
+          </table>
+          <p id="prog-vacio" class="vacio" hidden>Aún no hay programas. Crea el primero con el formulario.</p>
+        </div>
+
         <!-- Vista: Estudiantes -->
         <div id="vista-estudiantes" hidden>
           <h1 class="titulo">Estudiantes</h1>
@@ -109,7 +211,7 @@
 
           <table class="tabla">
             <thead>
-              <tr><th>Apellido y nombre</th><th>Documento</th><th>Correo</th><th></th></tr>
+              <tr><th>Apellido y nombre</th><th>Documento</th><th>Correo</th><th>Facultad</th><th>Carrera</th><th></th></tr>
             </thead>
             <tbody id="tabla-estudiantes"></tbody>
           </table>

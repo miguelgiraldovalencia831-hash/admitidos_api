@@ -35,6 +35,14 @@ const estudiantesSchema = new mongoose.Schema(
     password: {
       type: String,
       select: false /* no se devuelve en las consultas, para no filtrar la contraseña cifrada */
+    },
+    facultad: {
+      type: mongoose.Schema.Types.ObjectId, /* guarda el _id de la facultad que eligió */
+      ref: "Facultades"
+    },
+    programa: {
+      type: mongoose.Schema.Types.ObjectId, /* guarda el _id de la carrera que eligió */
+      ref: "Programas"
     }
   },
   {

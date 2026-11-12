@@ -7,13 +7,14 @@ import {
     actualizarEstudiante,
     eliminarEstudiante
 } from "./estudiantes.controller.js";
+import { soloAdmisor } from "../../utils/proteger.js";
 
 const router = Router();
 
-router.get("/show/", listarEstudiantes);
-router.get("/info/:id", obtenerEstudiantePorId);
-router.post("/create/", crearEstudiante);
-router.put("/update/:id", actualizarEstudiante);
-router.delete("/delete/:id", eliminarEstudiante);
+router.get("/show/", soloAdmisor, listarEstudiantes);
+router.get("/info/:id", soloAdmisor, obtenerEstudiantePorId);
+router.post("/create/", soloAdmisor, crearEstudiante);
+router.put("/update/:id", soloAdmisor, actualizarEstudiante);
+router.delete("/delete/:id", soloAdmisor, eliminarEstudiante);
 
 export default router;
