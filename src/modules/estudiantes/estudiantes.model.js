@@ -31,6 +31,10 @@ const estudiantesSchema = new mongoose.Schema(
       lowercase: true, /* guarda el correo siempre en minúscula */
       unique: true,
       maxlength: 150
+    },
+    password: {
+      type: String,
+      select: false /* no se devuelve en las consultas, para no filtrar la contraseña cifrada */
     }
   },
   {
