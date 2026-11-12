@@ -1,207 +1,121 @@
-import * as ProgramasService from './programas.service.js';
+import mongoose from "mongoose";
+import Facultad from "../facultades/facultades.model.js";
+import * as ProgramasService from "./programas.service.js";
+
+const NIVELES = ["pregrado", "posgrado", "otro"];
+
+function error(res, codigo, mensaje) {
+    return res.status(codigo).json({ statusCode: codigo, success: false, message: mensaje });
+}
+
+function ok(res, codigo, mensaje, data) {
+    return res.status(codigo).json({ statusCode: codigo, success: true, message: mensaje, data });
+}
+
+/* Revisa los datos. Devuelve el mensaje de error, o null si todo está bien */
+async function validarPrograma({ nombre, nivel, facultad }) {
+    if (typeof nombre !== "string" || !nombre.trim()) {
+        return "El campo 'nombre' es obligatorio";
+    }
+    if (nombre.trim().length < 3 || nombre.trim().length > 150) {
+        return "El campo 'nombre' debe tener entre 3 y 150 caracteres";
+    }
+    if (typeof nivel !== "string" || !NIVELES.includes(nivel.toLowerCase())) {
+        return "El nivel debe ser pregrado, posgrado u otro";
+    }
+    if (!mongoose.Types.ObjectId.isValid(facultad)) {
+        return "Debes elegir una facultad válida";
+    }
+    if (!(await Facultad.exists({ _id: facultad }))) {
+        return "La facultad elegida no existe";
+    }
+    return null;
+}
 
 export async function listarProgramas(req, res) {
     try {
-        const programas = await ProgramasService.listarProgramas();
-        res.json({
-            statusCode: 200,
-            success: true,
-            message: 'Programas listados correctamente',
-            data: programas
-        });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({
-            statusCode: 500,
-            success: false,
-            message: 'Error al listar los programas',
-        });
+        const { facultad } = req.query;
+        if (facultad !== undefined && !mongoose.Types.ObjectId.isValid(facultad)) {
+            return error(res, 400, "ID de facultad inválido");
+        }
+        const programas = await ProgramasService.listarProgramas(facultad);
+        return ok(res, 200, "Programas listados correctamente", programas);
+    } catch (e) {
+        console.error(e);
+        return error(res, 500, "Error al listar los programas");
     }
 }
 
-export async function obtenerFacultadPorId(req, res) {
-    const id = Number(req.params.id);
+export async function obtenerProgramaPorId(req, res) {
     try {
-        if (!Number.isInteger(id) || id <= 0) {
-            return res.status(400).json({
-                statusCode: 400,
-                success: false,
-                message: 'ID de facultad inválido'
-            });
-        }
+        const { id } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) return error(res, 400, "ID de programa inválido");
 
-        const facultad = await FacultadesService.obtenerFacultadPorId(id);
-        if (!facultad) {
-            return res.status(404).json({
-                statusCode: 404,
-                success: false,
-                message: 'Facultad no encontrada'
-            });
-        }
-        res.json({
-            statusCode: 200,
-            success: true,
-            message: 'Facultad obtenida correctamente',
-            data: facultad
-        });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({
-            statusCode: 500,
-            success: false,
-            message: 'Error al obtener la facultad'
-        });
+        const programa = await ProgramasService.obtenerProgramaPorId(id);
+        if (!programa) return error(res, 404, "Programa no encontrado");
+        return ok(res, 200, "Programa obtenido correctamente", programa);
+    } catch (e) {
+        console.error(e);
+        return error(res, 500, "Error al obtener el programa");
     }
 }
 
-
-export async function crearFacultad(req, res) {
-
+export async function crearPrograma(req, res) {
     try {
-        const { nombre } = req.body;
-        if (nombre === undefined) {
-            return res.status(400).json({
-                statusCode: 400,
-                success: false,
-                message: "El campo 'nombre' es obligatorio"
-            });
-        }
+        const { nombre, nivel, facultad } = req.body ?? {};
 
+        const mensaje = await validarPrograma({ nombre, nivel, facultad });
+        if (mensaje) return error(res, 400, mensaje);
 
-        if (nombre.length < 3 || nombre.length > 150) {
-            return res.status(400).json({
-                statusCode: 400,
-                success: false,
-                message: "El campo 'nombre' debe tener entre 3 y 150 caracteres"
-            });
-        }
-
-        const facultad = await FacultadesService.crearFacultad(nombre);
-        res.status(201).json({
-            statusCode: 201,
-            success: true,
-            message: 'Facultad creada correctamente',
-            data: facultad
+        const programa = await ProgramasService.crearPrograma({
+            nombre: nombre.trim(),
+            nivel: nivel.toLowerCase(),
+            facultad
         });
-    }
-    catch (error) {
-        console.error(error);
-        res.status(500).json({
-            statusCode: 500,
-            success: false,
-            message: 'Error al crear la facultad'
-        });
+        return ok(res, 201, "Programa creado correctamente", programa);
+    } catch (e) {
+        console.error(e);
+        if (e.code === 11000) return error(res, 409, "Ya existe un programa con ese nombre en esa facultad");
+        return error(res, 500, "Error al crear el programa");
     }
 }
 
-
-
-export async function actualizarFacultad(req, res) {
-
+export async function actualizarPrograma(req, res) {
     try {
-        const id = Number(req.params.id);
-        const { nombre } = req.body;
-        /* Validaciones ID */
+        const { id } = req.params;
+        const { nombre, nivel, facultad } = req.body ?? {};
 
-        if (!Number.isInteger(id) || id <= 0) {
-            return res.status(400).json({
-                statusCode: 400,
-                success: false,
-                message: 'ID de facultad inválido'
-            });
-        }
+        if (!mongoose.Types.ObjectId.isValid(id)) return error(res, 400, "ID de programa inválido");
+        if (!(await ProgramasService.obtenerProgramaPorId(id))) return error(res, 404, "Programa no encontrado");
 
-        const facultadActual = await FacultadesService.obtenerFacultadPorId(id);
-        if (!facultadActual) {
-            return res.status(404).json({
-                statusCode: 404,
-                success: false,
-                message: 'Facultad no encontrada'
-            });
-        }
+        const mensaje = await validarPrograma({ nombre, nivel, facultad });
+        if (mensaje) return error(res, 400, mensaje);
 
-        /* Validaciones nombre*/
-        if (nombre === undefined) {
-            return res.status(400).json({
-                statusCode: 400,
-                success: false,
-                message: "El campo 'nombre' es obligatorio"
-            });
-        }
-        if (nombre.length < 3 || nombre.length > 150) {
-            return res.status(400).json({
-                statusCode: 400,
-                success: false,
-                message: "El campo 'nombre' debe tener entre 3 y 150 caracteres"
-            });
-        }
-        const facultad = await FacultadesService.actualizarFacultad(id, nombre);
-        res.status(201).json({
-            statusCode: 201,
-            success: true,
-            message: 'Facultad actualizada correctamente',
-            data: facultad
+        const programa = await ProgramasService.actualizarPrograma(id, {
+            nombre: nombre.trim(),
+            nivel: nivel.toLowerCase(),
+            facultad
         });
-    }
-    catch (error) {
-        console.error(error);
-        res.status(500).json({
-            statusCode: 500,
-            success: false,
-            message: 'Error al actualizar la facultad'
-        });
+        return ok(res, 200, "Programa actualizado correctamente", programa);
+    } catch (e) {
+        console.error(e);
+        if (e.code === 11000) return error(res, 409, "Ya existe un programa con ese nombre en esa facultad");
+        return error(res, 500, "Error al actualizar el programa");
     }
 }
 
-
-export async function eliminarFacultad(req, res) {
-
+export async function eliminarPrograma(req, res) {
     try {
-        const id = Number(req.params.id);
+        const { id } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) return error(res, 400, "ID de programa inválido");
 
-        /* Validaciones ID */
+        const programa = await ProgramasService.obtenerProgramaPorId(id);
+        if (!programa) return error(res, 404, "Programa no encontrado");
 
-        if (!Number.isInteger(id) || id <= 0) {
-            return res.status(400).json({
-                statusCode: 400,
-                success: false,
-                message: 'ID de facultad inválido'
-            });
-        }
-
-        const facultadActual = await FacultadesService.obtenerFacultadPorId(id);
-        if (!facultadActual) {
-            return res.status(404).json({
-                statusCode: 404,
-                success: false,
-                message: 'Facultad no encontrada'
-            });
-        }
-
-        const eliminada = await FacultadesService.eliminarFacultad(id);
-
-        if (!eliminada) {
-            return res.status(500).json({
-                statusCode: 500,
-                success: false,
-                message: 'Error al eliminar la facultad  1'
-            })
-        }
-
-        return res.json({
-            statusCode: 201,
-            success: true,
-            message: 'Facultad eliminada correctamente',
-            data: facultadActual
-        })
-
-    }
-    catch (error) {
-        console.error(error);
-        res.status(500).json({
-            statusCode: 500,
-            success: false,
-            message: 'Facultad eliminada correctament'
-        });
+        await ProgramasService.eliminarPrograma(id);
+        return ok(res, 200, "Programa eliminado correctamente", programa);
+    } catch (e) {
+        console.error(e);
+        return error(res, 500, "Error al eliminar el programa");
     }
 }

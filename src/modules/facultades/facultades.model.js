@@ -4,7 +4,7 @@ const facultadesSchema = new mongoose.Schema(
     nombre: {
       type: String,
       required: true,
-      tri: true,
+      trim: true,
       minlength: 3,
       maxlength: 150
     }

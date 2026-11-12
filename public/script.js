@@ -1,6 +1,6 @@
 /* ---------- Sesión ---------- */
 const CLAVE_SESION = "admitidos_sesion";
-let sesion = null; /* { token, estudiante } para estudiantes, { token, admisor: true } para el equipo */
+let sesion = null; /* { token, estudiante } para estudiantes, { token, admisor: true } para el maestro */
 
 function leerSesionGuardada() {
   try {
@@ -37,14 +37,17 @@ async function pedir(ruta, opciones = {}) {
   } catch {
     throw new Error("No se pudo conectar con la API. Revisa que el backend esté encendido.");
   }
-  const resultado = await respuesta.json();
+  let resultado = {};
+  try {
+    resultado = await respuesta.json();
+  } catch { /* la respuesta no era JSON (por ejemplo un error del servidor) */ }
   if (respuesta.status === 401 && sesion) {
     cerrarSesion();
     mensajeAcceso("Tu sesión venció. Inicia sesión de nuevo.");
     throw new Error("Sesión vencida");
   }
   if (!respuesta.ok || resultado.success === false) {
-    throw new Error(resultado.message || "Ocurrió un error");
+    throw new Error(resultado.message || "Ocurrió un error (código " + respuesta.status + ")");
   }
   return resultado.data;
 }
@@ -216,7 +219,7 @@ async function eliminarFacultad(facultad) {
   }
 }
 
-/* ---------- Programas (admisor) ---------- */
+/* ---------- Programas (maestro) ---------- */
 const formProg = document.getElementById("form-programa");
 const progNombre = document.getElementById("prog-nombre");
 const progNivel = document.getElementById("prog-nivel");
@@ -471,6 +474,14 @@ function mostrarDatosEstudiante(est) {
   document.getElementById("dato-carrera").textContent = est.programa?.nombre ?? "Sin elegir";
   document.getElementById("dato-nivel").textContent = nombreNivel(est.programa?.nivel);
   document.getElementById("dato-codigo").textContent = est.programa?.codigo ?? "-";
+
+  /* Una vez elegida la carrera ya no se puede cambiar: se oculta el formulario */
+  const bloqueada = !!est.programa;
+  formCarrera.hidden = bloqueada;
+  document.getElementById("titulo-carrera").textContent = bloqueada ? "Tu carrera" : "Elige tu carrera";
+  document.getElementById("texto-carrera").textContent = bloqueada
+    ? "Tu carrera ya fue elegida y no se puede cambiar. Si necesitas un cambio, comunícate con el maestro."
+    : "Primero escoge la facultad y luego la carrera que quieres cursar.";
 }
 
 async function cargarProgramasDeFacultad(idFacultad) {
@@ -485,6 +496,7 @@ async function cargarProgramasDeFacultad(idFacultad) {
 }
 
 async function prepararSelectores(perfil) {
+  if (perfil.programa) return; /* ya eligió: no hace falta cargar los selectores */
   const facultades = await pedir("/api/facultades/show/");
   llenarSelect(selFacultad, facultades, "Elige una facultad");
 
@@ -519,6 +531,7 @@ selFacultad.addEventListener("change", async () => {
 
 formCarrera.addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (!confirm("Una vez guardada, tu carrera NO se podrá cambiar. ¿Confirmas tu elección?")) return;
   try {
     const perfil = await pedir("/api/auth/me/carrera", {
       method: "PUT",
@@ -579,20 +592,24 @@ function entrarALaApp() {
   document.querySelectorAll(".solo-estudiante").forEach((el) => (el.hidden = esAdmisor));
 
   if (esAdmisor) {
-    document.getElementById("avatar").textContent = "AA";
-    document.getElementById("usuario-nombre").textContent = "Analista";
-    document.getElementById("usuario-rol").textContent = "Admisiones";
-    document.getElementById("saludo").textContent = "Analista";
+    document.getElementById("avatar").textContent = "M";
+    document.getElementById("usuario-nombre").textContent = "Maestro";
+    document.getElementById("usuario-rol").textContent = "Maestro";
+    document.getElementById("nav-titulo").textContent = "Panel del maestro";
+    document.getElementById("nav-panel-texto").textContent = "Inicio";
+    document.getElementById("saludo-titulo").textContent = "Bienvenido, Maestro";
     document.getElementById("hero-texto").textContent =
-      "Este es el resumen de admisiones. Aquí puedes consultar las facultades y los estudiantes registrados.";
+      "Este es el resumen de admisiones. Desde aquí administras las facultades, los programas y los estudiantes.";
   } else {
     const est = sesion.estudiante;
     document.getElementById("avatar").textContent = (est.nombre[0] + est.apellido[0]).toUpperCase();
     document.getElementById("usuario-nombre").textContent = est.nombre + " " + est.apellido;
     document.getElementById("usuario-rol").textContent = "Estudiante";
-    document.getElementById("saludo").textContent = est.nombre;
+    document.getElementById("nav-titulo").textContent = "Mi espacio";
+    document.getElementById("nav-panel-texto").textContent = "Mi panel";
+    document.getElementById("saludo-titulo").textContent = "Hola, " + est.nombre;
     document.getElementById("hero-texto").textContent =
-      "Bienvenido a tu espacio de admisiones. Aquí puedes ver tus datos y las facultades disponibles.";
+      "Bienvenido a tu espacio de admisiones. Aquí puedes ver tus datos y elegir tu carrera.";
     mostrarDatosEstudiante(est);
   }
 
@@ -601,6 +618,7 @@ function entrarALaApp() {
 
 function cerrarSesion() {
   sesion = null;
+  document.getElementById("mensaje").hidden = true;
   try {
     localStorage.removeItem(CLAVE_SESION);
   } catch { /* nada que borrar */ }

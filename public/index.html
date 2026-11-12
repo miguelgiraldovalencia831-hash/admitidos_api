@@ -3,15 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
   <title>Admisiones</title>
+  <!-- Para poner tu logo: guarda tu imagen como public/logo.png (también sirve como icono de la pestaña) -->
+  <link rel="icon" href="logo.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Pantalla de acceso: registro e inicio de sesión de estudiantes -->
+  <!-- Pantalla de acceso: registro e inicio de sesión -->
   <section id="pantalla-acceso" class="acceso" hidden>
     <div class="acceso-caja">
       <div class="brand brand-acceso">
-        <div class="brand-logo">A</div>
+        <div class="brand-logo">
+          <img src="logo.png" alt="Logo" style="display:none"
+               onload="this.style.display='block'; this.parentElement.classList.add('tiene-logo')"
+               onerror="this.remove()">
+          <span>A</span>
+        </div>
         <div>
           <strong>Admisiones</strong>
           <small>Tu universidad</small>
@@ -27,12 +35,12 @@
 
       <form id="form-login" class="form-acceso">
         <label>Correo electrónico
-          <input type="email" id="login-email" required maxlength="150" autocomplete="email">
+          <input type="email" id="login-email" required maxlength="150" autocomplete="email" placeholder="tucorreo@ejemplo.com">
         </label>
         <label>Contraseña
-          <input type="password" id="login-password" required autocomplete="current-password">
+          <input type="password" id="login-password" required autocomplete="current-password" placeholder="Tu contraseña">
         </label>
-        <button type="submit" class="btn">Entrar</button>
+        <button type="submit" class="btn btn-grande">Entrar</button>
       </form>
 
       <form id="form-registro" class="form-acceso" hidden>
@@ -45,15 +53,15 @@
           </label>
         </div>
         <label>Documento
-          <input type="text" id="reg-documento" required minlength="5" maxlength="20">
+          <input type="text" id="reg-documento" required minlength="5" maxlength="20" inputmode="numeric">
         </label>
         <label>Correo electrónico
-          <input type="email" id="reg-email" required maxlength="150" autocomplete="email">
+          <input type="email" id="reg-email" required maxlength="150" autocomplete="email" placeholder="tucorreo@ejemplo.com">
         </label>
         <label>Contraseña (mínimo 8 caracteres)
           <input type="password" id="reg-password" required minlength="8" autocomplete="new-password">
         </label>
-        <button type="submit" class="btn">Crear cuenta</button>
+        <button type="submit" class="btn btn-grande">Crear cuenta</button>
       </form>
 
     </div>
@@ -63,19 +71,36 @@
 
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-logo">A</div>
+        <div class="brand-logo">
+          <img src="logo.png" alt="Logo" style="display:none"
+               onload="this.style.display='block'; this.parentElement.classList.add('tiene-logo')"
+               onerror="this.remove()">
+          <span>A</span>
+        </div>
         <div>
           <strong>Admisiones</strong>
           <small>Tu universidad</small>
         </div>
       </div>
 
-      <p class="nav-title">Mi espacio</p>
+      <p class="nav-title" id="nav-titulo">Mi espacio</p>
       <nav>
-        <a href="#" class="nav-link activo" data-vista="panel">Mi panel</a>
-        <a href="#" class="nav-link solo-admisor" data-vista="facultades">Facultades</a>
-        <a href="#" class="nav-link solo-admisor" data-vista="programas">Programas</a>
-        <a href="#" class="nav-link solo-admisor" data-vista="estudiantes">Estudiantes</a>
+        <a href="#" class="nav-link activo" data-vista="panel">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+          <span id="nav-panel-texto">Mi panel</span>
+        </a>
+        <a href="#" class="nav-link solo-admisor" data-vista="facultades">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V10l7-5 7 5v11M9 21v-6h6v6"/></svg>
+          Facultades
+        </a>
+        <a href="#" class="nav-link solo-admisor" data-vista="programas">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M9 7h6"/></svg>
+          Programas
+        </a>
+        <a href="#" class="nav-link solo-admisor" data-vista="estudiantes">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg>
+          Estudiantes
+        </a>
       </nav>
 
       <div class="periodo">
@@ -88,10 +113,10 @@
       <header class="topbar">
         <span id="fecha"></span>
         <div class="usuario">
-          <div class="avatar" id="avatar">AA</div>
+          <div class="avatar" id="avatar">M</div>
           <div>
-            <strong id="usuario-nombre">Analista</strong>
-            <small id="usuario-rol">Admisiones</small>
+            <strong id="usuario-nombre">Maestro</strong>
+            <small id="usuario-rol">Maestro</small>
           </div>
           <button type="button" id="btn-salir" class="btn-chico">Cerrar sesión</button>
         </div>
@@ -106,7 +131,7 @@
         <div id="vista-panel">
           <section class="hero">
             <span class="chip">Periodo 2026 - 2</span>
-            <h1>Hola, <span id="saludo">Analista</span></h1>
+            <h1 id="saludo-titulo">Bienvenido, Maestro</h1>
             <p id="hero-texto">Este es el resumen de admisiones. Aquí puedes consultar las facultades y los estudiantes registrados.</p>
           </section>
 
@@ -124,8 +149,8 @@
           </section>
 
           <section class="mi-carrera solo-estudiante" hidden>
-            <h2>Elige tu carrera</h2>
-            <p>Primero escoge la facultad y luego la carrera que quieres cursar.</p>
+            <h2 id="titulo-carrera">Elige tu carrera</h2>
+            <p id="texto-carrera">Primero escoge la facultad y luego la carrera que quieres cursar.</p>
             <form id="form-carrera" class="form-carrera">
               <select id="sel-facultad" required></select>
               <select id="sel-programa" required disabled></select>
